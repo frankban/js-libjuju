@@ -19,7 +19,7 @@ check:
 
 .PHONY: clean
 clean:
-	rm -rf $(DEVENV) .tox dist *.egg-info
+	rm -rf $(DEVENV) .tox dist *.egg-info output/*.js
 
 .PHONY: help
 help:

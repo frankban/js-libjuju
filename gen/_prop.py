@@ -6,14 +6,43 @@
 from collections import namedtuple
 
 
+class Method(namedtuple('Method', 'name params result')):
+    __slots__ = ()
+
+
+
 class Prop(namedtuple('Prop', 'name kind required')):
     __slots__ = ()
 
     def __str__(self):
-        parts = [self.name, str(self.kind)]
+        name = self.name + ': ' if self.name else ''
+        text = name + str(self.kind)
         if self.required:
-            parts.append('(required)')
-        return ' '.join(parts)
+            text += ' (required)'
+        return text
+
+    def camelCase(self):
+        """Return the name in camelCase, suitable for JavaScript."""
+        return _camelcase(self.name)
+
+    def docstring(self):
+        """Return a docstring for this property."""
+        indent, level = '  ', 3
+        parts = []
+        for char in str(self):
+            if char == '{':
+                level += 1
+                parts.extend(['{\n', indent * level])
+                continue
+            if char == '}':
+                level -= 1
+                parts.extend(['\n', indent * level, '}'])
+                continue
+            if char == ',':
+                parts.extend([',\n', indent * level])
+                continue
+            parts.append(char)
+        return _camelcase(''.join(parts))
 
 
 class Dict:
@@ -22,10 +51,7 @@ class Dict:
         self.props = props
 
     def __str__(self):
-        parts = ['{']
-        parts.extend('  {}'.format(prop) for prop in self.props)
-        parts.append('}')
-        return '\n'.join(parts)
+        return '{' + ','.join(str(prop) for prop in self.props) + '}'
 
 
 class List:
@@ -34,15 +60,13 @@ class List:
         self.prop = prop
 
     def __str__(self):
-        return str(self.prop)
-
-
-kinds = set()
+        return '[]' + str(self.prop)
 
 
 def from_bare_properties(name, info, required=False):
-    kind = info.get('type', 'unknown')
-    kinds.add(kind)
+    if not info:
+        return None
+    kind = info['type']
     if kind == 'object':
         properties = info.get('properties', {})
         required_props = info.get('required', ())
@@ -52,6 +76,12 @@ def from_bare_properties(name, info, required=False):
         ]
         kind = Dict(props)
     if kind == 'array':
-        prop = from_bare_properties('[]', info['items'])
+        prop = from_bare_properties('', info['items'])
         kind = List(prop)
     return Prop(name, kind, required)
+
+
+def _camelcase(text):
+    words = text.split('-')
+    first = words.pop(0)
+    return ''.join([first.lower()] + [word.capitalize() for word in words])

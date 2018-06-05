@@ -13,3 +13,6 @@ __pycache__/
 .tox
 .cache
 devenv
+
+# app specific
+output/*.js

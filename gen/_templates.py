@@ -7,15 +7,39 @@
 from jinja2 import Template
 
 
-facade = Template("""
-class {{ name }} {
-  constructor(client) {
-    this._client = client;
-  }
-  {% for prop in props %}
-  {{ prop.name }}({{ prop.args|join(', ') }}) {
+facade_template = Template("""
+'use strict';
 
+var module = module;
+
+(function(exports) {
+
+  const jujulib = exports.jujulib;
+
+  class {{ name }}V{{ version }} {
+
+    constructor(transport, info) {
+      this.version = {{ version }};
+      this._transport = transport;
+      this._info = info;
+    }
+    {% for method in methods %}
+    /**
+      {%- if method.params %}
+      {{ method.params.docstring() }}
+      {%- endif %}
+      {%- if method.result %}
+      {{ method.result.docstring() }}
+      {%- endif %}
+    */
+    {{ method.name }}({% if method.params %}params, {% endif %}callback) {
+
+    }
+    {% endfor %}
   }
-  {% endfor %}
-}
+
+  const versions = jujulib._facades['{{ name }}'] || {};
+  versions[{{ version }}] = {{ name }}V{{ version }};
+
+}((module && module.exports) ? module.exports : this));
 """[1:])
