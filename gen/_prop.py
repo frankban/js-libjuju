@@ -17,7 +17,6 @@ class Method(namedtuple('Method', 'request params result')):
         return uncapitalize(self.request)
 
 
-
 class Prop(namedtuple('Prop', 'name kind required')):
     """A JavaScript property."""
 
@@ -156,13 +155,6 @@ def from_bare_properties(info, name='', required=False):
     return Prop(name, kind, required)
 
 
-def _camelcase(text):
-    """Convert the given text from this-format to thisFormat."""
-    words = text.split('-')
-    first = words.pop(0)
-    return ''.join([first.lower()] + [word.capitalize() for word in words])
-
-
 def uncapitalize(text):
     """Return the given text with the first letter lowercased."""
     if not text:
@@ -179,6 +171,13 @@ def uncapitalize(text):
     prefix = ''.join(uppers)
     return prefix.lower() + text[len(prefix):]
  
+
+def _camelcase(text):
+    """Convert the given text from this-format to thisFormat."""
+    words = text.split('-')
+    first = words.pop(0)
+    return ''.join([first.lower()] + [word.capitalize() for word in words])
+
 
 def _indent(level, text):
     prefix = '  ' * level

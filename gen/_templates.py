@@ -50,6 +50,9 @@ class {{ name }}V{{ version }} {
     };
     // Send the request to the server.
     this._transport.write(req, (err, resp) => {
+      if (!callback) {
+        return;
+      }
       if (err) {
         callback(err, {});
         return;
