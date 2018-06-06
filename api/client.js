@@ -92,8 +92,11 @@ class _Transport {
     const state = this._ws.readyState;
     if (state !== 1) {
       const reqStr = JSON.stringify(req);
-      callback(
-        `cannot send request ${reqStr}: connection state ${state} is not open`);
+      if (callback) {
+        callback(
+          `cannot send request ${reqStr}: ` + 
+          `connection state ${state} is not open`);
+      }
       return;
     }
     this._counter += 1;
@@ -133,7 +136,10 @@ class _Connection {
     const userInfo = loginResp['user-info'];
     this.info = {
       controllerAccess: userInfo['controller-access'],
-      modelAccess: userInfo['model-access']
+      modelAccess: userInfo['model-access'],
+      getFacade: name => {
+        return this.facades[name];
+      }
       // TODO: add the others.
     };
     const respFacades = loginResp.facades || [];
