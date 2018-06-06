@@ -15,4 +15,6 @@ __pycache__/
 devenv
 
 # app specific
+node_modules/
 output/*.js
+package-lock.json

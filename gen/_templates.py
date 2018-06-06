@@ -10,36 +10,49 @@ from jinja2 import Template
 facade_template = Template("""
 'use strict';
 
-var module = module;
+class {{ name }}V{{ version }} {
 
-(function(exports) {
-
-  const jujulib = exports.jujulib;
-
-  class {{ name }}V{{ version }} {
-
-    constructor(transport, info) {
-      this.version = {{ version }};
-      this._transport = transport;
-      this._info = info;
-    }
-    {% for method in methods %}
-    /**
-      {%- if method.params %}
-      {{ method.params.docstring() }}
-      {%- endif %}
-      {%- if method.result %}
-      {{ method.result.docstring() }}
-      {%- endif %}
-    */
-    {{ method.name }}({% if method.params %}params, {% endif %}callback) {
-
-    }
-    {% endfor %}
+  constructor(transport, info) {
+    this._transport = transport;
+    this._info = info;
+    this.version = {{ version }};
   }
+  {% for method in methods %}
+  {%- if method.params or method.result %}
+  /**
+    {%- if method.params %}
+    {{ method.params.docstring() }}
+    {%- endif %}
+    {%- if method.result %}
+    {{ method.result.docstring() }}
+    {%- endif %}
+  */
+  {%- endif %}
+  {{ method.name() }}({% if method.params %}params, {% endif %}callback) {
+    const req = {
+      type: '{{ name }}',
+      request: '{{ method.request }}',
+      version: {{ version }},
+      {%- if method.params %}
+      // {{ method.params.marshal() }}
+      {%- else %}
+      params: {}
+      {%- endif %}
+    };
+    this._transport.write(req, (err, resp) => {
+      if (err) {
+        callback(err, {});
+        return;
+      }
+      {%- if method.result %}
+      // callback(null, {{ method.result.marshal() }});
+      {%- else %}
+      callback(null, {});
+      {%- endif %}
+    });
+  }
+  {% endfor %}
+}
 
-  const versions = jujulib._facades['{{ name }}'] || {};
-  versions[{{ version }}] = {{ name }}V{{ version }};
-
-}((module && module.exports) ? module.exports : this));
+module.exports = {{ name }}V{{ version }};
 """[1:])

@@ -11,6 +11,7 @@ import os
 from ._prop import (
     from_bare_properties,
     Method,
+    uncapitalize,
 )
 from ._templates import facade_template
 
@@ -43,7 +44,7 @@ def run(ns):
     for facade in ns.schema:
         methods = _handle_facade(facade['Schema'])
         name, version = facade['Name'], facade['Version']
-        filename = '{}V{}.js'.format(_uncapitalize(name), version)
+        filename = '{}-v{}.js'.format(_hyphenize(uncapitalize(name)), version)
         facade_template.stream(
             name=name, methods=methods, version=version
         ).dump(os.path.join(ns.out, filename))
@@ -54,7 +55,7 @@ def _handle_facade(schema):
     methods = []
     for name, info in props.items():
         params, result = _handle_prop(info, defs)
-        methods.append(Method(name=name, params=params, result=result))
+        methods.append(Method(request=name, params=params, result=result))
     return methods
 
 
@@ -82,7 +83,11 @@ def _dereference(data, defs, current_ref=None):
     return result
 
 
-def _uncapitalize(text):
-    if not text:
-        return ''
-    return text[0].lower() + text[1:]
+def _hyphenize(string):
+    """Convert thisString into this-string."""
+    parts = []
+    for char in string:
+        if char.isupper():
+            char = '-' + char.lower()
+        parts.append(char)
+    return ''.join(parts)
