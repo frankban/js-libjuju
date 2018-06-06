@@ -61,7 +61,6 @@ function wrapAllWatcher(cls) {
 }
 
 
-
 function wrapClient(cls) {
   cls.prototype.watch = function(callback) {
     if (!callback) {
