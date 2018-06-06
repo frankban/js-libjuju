@@ -4,6 +4,7 @@
 """Facade property definitions."""
 
 from collections import namedtuple
+import itertools
 
 
 class Method(namedtuple('Method', 'request params result')):
@@ -31,7 +32,7 @@ class Prop(namedtuple('Prop', 'name kind required')):
 
     def docstring(self):
         """Return a docstring for this property."""
-        indent, level = '  ', 3
+        indent, level = '  ', 0
         parts = []
         for char in str(self):
             if char == '{':
@@ -48,14 +49,29 @@ class Prop(namedtuple('Prop', 'name kind required')):
             parts.append(char)
         return _camelcase(''.join(parts))
 
-    def marshal(self):
+    def marshal(self, key, value):
         """Return this property as a marshaled string."""
-        fallback = ''
-        value = _camelcase(self.name)
+        if self.name:
+            key = "{}['{}']".format(key, self.name)
+            value = '{}.{}'.format(value, _camelcase(self.name))
         marshal_kind = getattr(self.kind, 'marshal', None)
         if marshal_kind:
-            value = marshal_kind(value, self.required)
-        return self.name + ': ' + value
+            return marshal_kind(key, value, self.required)
+        if not self.required:
+            value += ' || undefined'
+        return '{} = {};'.format(key, value)
+
+    def unmarshal(self, key, value):
+        """Return this property as a JavaScript string."""
+        if self.name:
+            key = '{}.{}'.format(key, _camelcase(self.name))
+            value = "{}['{}']".format(value, self.name)
+        unmarshal_kind = getattr(self.kind, 'unmarshal', None)
+        if unmarshal_kind:
+            return unmarshal_kind(key, value, self.required)
+        if not self.required:
+            value += ' || undefined'
+        return '{} = {};'.format(key, value)
 
 
 class Dict:
@@ -70,9 +86,15 @@ class Dict:
     def __str__(self):
         return '{' + ','.join(str(prop) for prop in self.props) + '}'
 
-    def marshal(self, key, required):
-        props = ','.join(key + '.' + prop.marshal() for prop in self.props)
-        return '{' + props + '}'
+    def marshal(self, key, value, required):
+        parts = [key + ' = {};', value + ' = ' + value + ' || {};']
+        parts.extend(prop.marshal(key, value) for prop in self.props)
+        return '\n'.join(parts)
+
+    def unmarshal(self, key, value, required):
+        parts = [key + ' = {};', value + ' = ' + value + ' || {};']
+        parts.extend(prop.unmarshal(key, value) for prop in self.props)
+        return '\n'.join(parts)
 
 
 class List:
@@ -80,6 +102,7 @@ class List:
 
     The type is a list of objects represented by the provided prop.
     """
+    count = itertools.count(1)
 
     def __init__(self, prop):
         self.prop = prop
@@ -87,8 +110,34 @@ class List:
     def __str__(self):
         return '[]' + str(self.prop)
 
+    def marshal(self, key, value, required):
+        count = next(self.count)
+        parts = [key + ' = [];', value + ' = ' + value + ' || [];']
+        i = 'i{}'.format(count)
+        parts.append(
+            'for (let {i} = 0; {i} < {value}.length; {i}++) {{'
+            ''.format(i=i,value=value))
+        prop = self.prop.marshal(
+            '{}[{}]'.format(key, i), '{}[{}]'.format(value, i))
+        parts.append(_indent(1, prop))
+        parts.append('}')
+        return '\n'.join(parts)
 
-def from_bare_properties(name, info, required=False):
+    def unmarshal(self, key, value, required):
+        count = next(self.count)
+        parts = [key + ' = [];',value + ' = ' + value + ' || [];']
+        i = 'i{}'.format(count)
+        parts.append(
+            'for (let {i} = 0; {i} < {value}.length; {i}++) {{'
+            ''.format(i=i,value=value))
+        prop = self.prop.unmarshal(
+            '{}[{}]'.format(key, i), '{}[{}]'.format(value, i))
+        parts.append(_indent(1, prop))
+        parts.append('}')
+        return '\n'.join(parts)
+
+
+def from_bare_properties(info, name='', required=False):
     """Return a property object from the provided bare information."""
     if not info:
         return None
@@ -97,12 +146,12 @@ def from_bare_properties(name, info, required=False):
         properties = info.get('properties', {})
         required_props = info.get('required', ())
         props = [
-            from_bare_properties(k, v, k in required_props)
+            from_bare_properties(v, name=k, required=k in required_props)
             for k, v in properties.items()
         ]
         kind = Dict(props)
     if kind == 'array':
-        prop = from_bare_properties('', info['items'])
+        prop = from_bare_properties(info['items'])
         kind = List(prop)
     return Prop(name, kind, required)
 
@@ -130,3 +179,7 @@ def uncapitalize(text):
     prefix = ''.join(uppers)
     return prefix.lower() + text[len(prefix):]
  
+
+def _indent(level, text):
+    prefix = '  ' * level
+    return '\n'.join(prefix+line for line in text.splitlines())

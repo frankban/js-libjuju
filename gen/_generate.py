@@ -64,8 +64,8 @@ def _handle_prop(info, defs):
     if not props:
         return None, None
     params, result = props.get('Params', {}), props.get('Result', {})
-    params = from_bare_properties('params', _dereference(params, defs))
-    result = from_bare_properties('result', _dereference(result, defs))
+    params = from_bare_properties(_dereference(params, defs))
+    result = from_bare_properties(_dereference(result, defs))
     return params, result
 
 

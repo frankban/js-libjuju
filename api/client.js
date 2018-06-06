@@ -3,33 +3,38 @@
 
 'use strict';
 
-function connect(url, facades, options={}, callback) {
-  if (!options.wsclass) {
-    options.wsclass = window.WebSocket;
+function connect(url, options={}, callback) {
+  if (!options.adminFacadeVersion) {
+    options.adminFacadeVersion = 3;
   }
   if (!options.closeCallback) {
     options.closeCallback = () => {};
   }
-  if (!options.adminFacadeVersion) {
-    options.adminFacadeVersion = 3;
+  if (!options.debug) {
+    options.debug = false;
+  }
+  if (!options.facades) {
+    options.facades = [];
+  }
+  if (!options.wsclass) {
+    options.wsclass = window.WebSocket;
   }
   const ws = new options.wsclass(url);
   ws.onopen = evt => {
-    callback(null, new _Client(ws, facades, options));
+    callback(null, new _Client(ws, options));
   }
   ws.onclose = evt => {
     console.log('closing');
     callback('cannot connect WebSocket: ' + evt.reason, null);
   }
-  return new _Client(ws, facades, options)
 }
 
 
 class _Client {
   
-  constructor(ws, facades, options) {
-    this._transport = new _Transport(ws, options.closeCallback)
-    this._facades = facades;
+  constructor(ws, options) {
+    this._transport = new _Transport(ws, options.closeCallback, options.debug);
+    this._facades = options.facades;
     this._adminFacadeVersion = options.adminFacadeVersion;
   }
   
@@ -63,15 +68,22 @@ class _Client {
 
 class _Transport {
 
-  constructor(ws, closeCallback) {
+  constructor(ws, closeCallback, debug) {
     this._ws = ws;
     this._counter = 0;
     this._callbacks = {};
     this._closeCallback = closeCallback;
+    this._debug = debug;
     ws.onmessage = evt => {
+      if (this._debug) {
+        console.debug('<--', evt.data);
+      }
       this._handle(evt.data);
     }
     ws.onclose = evt => {
+      if (this._debug) {
+        console.debug('close:', evt.code, evt.reason);
+      }
       this._closeCallback(evt.code);
     }
   }
@@ -87,7 +99,11 @@ class _Transport {
     this._counter += 1;
     req['request-id'] = this._counter;
     this._callbacks[this._counter] = callback;
-    this._ws.send(JSON.stringify(req));
+    const msg = JSON.stringify(req);
+    if (this._debug) {
+      console.debug('-->', msg);
+    }
+    this._ws.send(msg);
   }
 
   close(callback) {
