@@ -6,7 +6,9 @@ const bakery = require('macaroon-bakery');
 // Bakery uses btoa and MLHttpRequest.
 global.btoa = require('btoa');
 global.XMLHttpRequest = require('xhr2');
+const https = require('https');
 const opn = require('opn');
+
 
 
 const jujulib = require('../api/client.js');
@@ -19,8 +21,7 @@ const modelFacades = [
   require('../api/facades/client-v1.js'),
   require('../api/facades/client-v2.js')
 ];
-const macaroons = JSON.parse(`[[{"identifier":"api-login","signature":"643789dcfc9f68331d5bcf15411e9d091c8793fb0ed50bd14e5b955644f6358c","location":"juju model 48c2cc6a-2464-4cb8-8b9e-31ff4b453c71","caveats":[{"cid":"time-before 2018-07-17T17:10:26.05716725Z"},{"cid":"eyJUaGlyZFBhcnR5UHVibGljS2V5IjoiaG1IYVBnQ0MxVWZ1aFlIVVNYNSthaWhTQVplc3FwVmRqUnYwbWdmSXdqbz0iLCJGaXJzdFBhcnR5UHVibGljS2V5IjoiVjI2ejJaSlZkYjA3cDJta0FmNmJtT0IrTUtvWWlSTUdPKzZtMVloeGJIaz0iLCJOb25jZSI6IkpHYTFZL1N2UTlLMlR1dTVoSHhpOStQMXlDU2EzNmxVIiwiSWQiOiJQd1R5Um1xUURHRlNHOFZuK0lVMFhwUXpuUHZMaTllNWo3Mk8raUVValhxSHduVWJ3dnk2MW9nRFBabW1iV3ViREluRGN6UlBzS2V0VnhCQ1NqNktZbnlzZjFCQU12R2V5TDNrdjlHZFBKMTlHSlY4ejU5U2pidEtGK1hTN1Y3QXF5YnNwS2gxZXIxUDN4Y3hMamEzY0l5ak9RUitMbHROQkE9PSJ9","vid":"X1-x55hl3vNBqbNZ1dSVNMkAl-UDwYS5qKpQ1A4ELtqcC6rsT1plj41PtYHgU5SG1veMFUknqQwU3qYnWX_QRfCUFNQSH1Ab","cl":"https://api.jujucharms.com/identity"}]},{"identifier":"eyJUaGlyZFBhcnR5UHVibGljS2V5IjoiaG1IYVBnQ0MxVWZ1aFlIVVNYNSthaWhTQVplc3FwVmRqUnYwbWdmSXdqbz0iLCJGaXJzdFBhcnR5UHVibGljS2V5IjoiVjI2ejJaSlZkYjA3cDJta0FmNmJtT0IrTUtvWWlSTUdPKzZtMVloeGJIaz0iLCJOb25jZSI6IkpHYTFZL1N2UTlLMlR1dTVoSHhpOStQMXlDU2EzNmxVIiwiSWQiOiJQd1R5Um1xUURHRlNHOFZuK0lVMFhwUXpuUHZMaTllNWo3Mk8raUVValhxSHduVWJ3dnk2MW9nRFBabW1iV3ViREluRGN6UlBzS2V0VnhCQ1NqNktZbnlzZjFCQU12R2V5TDNrdjlHZFBKMTlHSlY4ejU5U2pidEtGK1hTN1Y3QXF5YnNwS2gxZXIxUDN4Y3hMamEzY0l5ak9RUitMbHROQkE9PSJ9","signature":"aa702d3baa9107e9121943a08b4b5dadea5065a1cd26888d4129e5a1a60b8e6a","caveats":[{"cid":"declared username frankban"},{"cid":"time-before 2018-07-18T16:10:38.424634398Z"}]}]]`);
-
+const macaroons = JSON.parse('[[{"identifier":"api-login","signature":"f69611e1f734c3f7dc523bf41c78566000813be87d146a804354073e86ec0ac9","location":"juju model 8a710bfe-9660-47ef-8054-338857fd0ced","caveats":[{"cid":"time-before 2018-07-17T20:18:13.95336126Z"},{"cid":"eyJUaGlyZFBhcnR5UHVibGljS2V5IjoiaG1IYVBnQ0MxVWZ1aFlIVVNYNSthaWhTQVplc3FwVmRqUnYwbWdmSXdqbz0iLCJGaXJzdFBhcnR5UHVibGljS2V5IjoiWWhYS2EyMzN0VUIyRUpQZC9nYU1BUy8vYk5TUWhOVlloQUNSakcrRmlDND0iLCJOb25jZSI6IkFqUnpBdDIrL2N3N3hHekg5Z2ZNbzdZUCtlZ3pNNW9pIiwiSWQiOiJ0aGVhTW51cTE3VDVVaDdURHJibnpTeEhIR2NneHdOcnhRamZlZWlhUGpXdkJMVTFvOTY1ZzlYbWR2ZzVtTHVaeTFUL0VCSFJQYkhYc1ZNaGhKc0pHZW1aOEprcUxWcmdxZFNJTkFGY2VQMzNaSlpnMitGSU4vYmUrb2RzeURUcFZydjEyd1RXUWFwVWlLb1h1Vk9BN2wrczBDc1JPK2VNTVE9PSJ9","vid":"JbuOiEaa9hqHgJhHQx76Wb2ThRKwlQGLXXhXuyjDBX4R7o2QjMpKUFDL_zSUEheHs4o5ZxR_rlBQir8Wi0XPCx2WQ0zCJOXY","cl":"https://api.jujucharms.com/identity"}]},{"identifier":"eyJUaGlyZFBhcnR5UHVibGljS2V5IjoiaG1IYVBnQ0MxVWZ1aFlIVVNYNSthaWhTQVplc3FwVmRqUnYwbWdmSXdqbz0iLCJGaXJzdFBhcnR5UHVibGljS2V5IjoiWWhYS2EyMzN0VUIyRUpQZC9nYU1BUy8vYk5TUWhOVlloQUNSakcrRmlDND0iLCJOb25jZSI6IkFqUnpBdDIrL2N3N3hHekg5Z2ZNbzdZUCtlZ3pNNW9pIiwiSWQiOiJ0aGVhTW51cTE3VDVVaDdURHJibnpTeEhIR2NneHdOcnhRamZlZWlhUGpXdkJMVTFvOTY1ZzlYbWR2ZzVtTHVaeTFUL0VCSFJQYkhYc1ZNaGhKc0pHZW1aOEprcUxWcmdxZFNJTkFGY2VQMzNaSlpnMitGSU4vYmUrb2RzeURUcFZydjEyd1RXUWFwVWlLb1h1Vk9BN2wrczBDc1JPK2VNTVE9PSJ9","signature":"6410a889958cee9c65a9c83ec32ebefb62d927a83173faa3926b912ff941b09e","caveats":[{"cid":"declared username frankban"},{"cid":"time-before 2018-07-18T19:18:17.297219241Z"}]}]]');
 
 // Connect to a juju model or controller and then call the callback with an
 // error and the connection.
@@ -152,12 +153,16 @@ function checkShellStatus(model, conn, done) {
     done({});
     return;
   }
-  conn.facades.client.fullStatus({}, (err, result) => {
-    console.log(result);
-    done({});
+  conn.facades.application.get({application: 'jujushell-prod'}, (err, result) => {
+    const dnsName = result.config['dns-name'].value;
+    https.get(`https://${dnsName}/status/`, resp => {
+      done({shellStatus: resp.statusCode});
+    });
   });
 }
 
 
-process([addName, checkStatus, checkShellStatus], console.log);
+process([addName, checkStatus, checkShellStatus], data => {
+  console.log(data);
+});
 
